@@ -1,0 +1,31 @@
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types._
+
+object df_final {
+    def main(spark: SparkSession) = {
+        // manual schema
+        val myschema = new StructType()
+                             .add("ITIN_ID", StringType, true)
+                             .add("YEAR", StringType, true) 
+                             .add("QUARTER", StringType,true) 
+                             .add("ORIGIN", StringType, true) 
+                             .add("ORIGIN_STATE_NM", StringType, true) 
+                             .add("DEST", StringType, true) 
+                             .add("DEST_STATE_NM", StringType, true) 
+                             .add("PASSENGERS", DoubleType, true)
+        // read csv, with head = true, and schema specification
+        val df = spark.read.format("csv")
+                           .option("delimiter", ",")
+                           .option("header", "true")
+                           .schema(myschema)
+                           .load("/datasets/flight")
+        // selection corresponding cols, and create a column as 1.0
+        val orders = df.selectExpr("ORIGIN_STATE_NM", "PASSENGERS", "1.0 as FLIGHT_COUNT")
+        // group by each state, for each state, calculate the sum of passengers, and sum of 1.0.
+        val grouped = orders.groupBy("ORIGIN_STATE_NM").agg(sum("PASSENGERS").alias("Number_of_passengers"), sum("FLIGHT_COUNT").alias("Number_of_flights"))
+        grouped.write.format("csv").option("mode", "ignore").save("/user/ybl5346/output_df")
+    }
+}
+
+ // Array((Montana,(27294.0,34071.0)), (California,(289809.0,613244.0)), (Washington,(80341.0,158700.0)), (Massachusetts,(42226.0,99458.0)))
+
